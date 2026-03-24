@@ -1,4 +1,5 @@
 .project
+.gradle
 build/
 bin/
 *.class
@@ -7,3 +8,6 @@ bin/
 *.iml
 *.iws
 *.ipr
+.vscode/settings.json
+.bloop/
+.metals/
