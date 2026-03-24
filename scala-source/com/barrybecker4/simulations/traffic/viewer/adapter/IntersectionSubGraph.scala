@@ -2,7 +2,8 @@ package com.barrybecker4.simulations.traffic.viewer.adapter
 
 import com.barrybecker4.simulations.traffic.graph.model.Intersection
 import com.barrybecker4.simulations.traffic.signals.TrafficSignal
-import com.barrybecker4.simulations.traffic.vehicles.{VehicleSprite, VehicleSpriteManager}
+import com.barrybecker4.simulations.traffic.simulation.{RoadTopology, SimulationState, TrafficSimulationConfig}
+import com.barrybecker4.simulations.traffic.simulation.SimVehicle
 import org.graphstream.graph.{Edge, Node}
 import org.graphstream.graph.implementations.MultiGraph
 
@@ -10,9 +11,9 @@ import org.graphstream.graph.implementations.MultiGraph
  * Represents the nodes and edges in an intersection.
  * Regulates the movement of vehicles on the edges leading into the intersection
  */
-case class IntersectionSubGraph(intersection: Intersection, graph: MultiGraph) {
+case class IntersectionSubGraph(intersection: Intersection, graph: MultiGraph, config: TrafficSimulationConfig) {
 
-  private val signal: TrafficSignal = intersection.signalType.create(intersection.ports.size)
+  private val signal: TrafficSignal = intersection.signalType.create(intersection.ports.size, config)
   private val builder = new IntersectionSubGraphBuilder(intersection, graph)
 
   def getIncomingNode(portId: Int): Node = builder.incomingNodes(portId)
@@ -29,35 +30,41 @@ case class IntersectionSubGraph(intersection: Intersection, graph: MultiGraph) {
    *     - If upcoming Signal is red, then start to smoothly slow so that we can be stopped by the time we get there
    * Under no circumstances should a vehicle be able to pass another.
    */
-  def update(deltaTime: Double, spriteManager: VehicleSpriteManager): Unit = synchronized {
+  def update(deltaTime: Double, state: SimulationState, topology: RoadTopology): Unit = {
     for (portId <- intersection.ports.indices) {
       val inNode: Node = getIncomingNode(portId)
       signal.showLight(inNode, portId)
       assert(inNode.getInDegree == 1, "There should be exactly one edge entering the intersection on a port")
       val incomingEdge: Edge = inNode.getEnteringEdge(0)
-      updateVehiclesOnEdge(handleSignal = true, incomingEdge, portId, deltaTime, spriteManager)
+      updateVehiclesOnEdge(handleSignal = true, incomingEdge, portId, deltaTime, state, topology)
       for (j <- 0 until inNode.getOutDegree) {
         val outgoingEdge = inNode.getLeavingEdge(j)
-        updateVehiclesOnEdge(handleSignal = false, outgoingEdge, portId, deltaTime, spriteManager)
+        updateVehiclesOnEdge(handleSignal = false, outgoingEdge, portId, deltaTime, state, topology)
       }
     }
   }
 
-  private def updateVehiclesOnEdge(handleSignal: Boolean, edge: Edge, portId: Int, deltaTime: Double,
-                                   spriteManager: VehicleSpriteManager): Unit = {
-    val edgeLen = edge.getAttribute("length", classOf[Object]).asInstanceOf[Double]
-    val sprites = spriteManager.getVehiclesOnEdge(edge.getId)
+  private def updateVehiclesOnEdge(
+      handleSignal: Boolean,
+      edge: Edge,
+      portId: Int,
+      deltaTime: Double,
+      state: SimulationState,
+      topology: RoadTopology
+  ): Unit = {
+    val edgeLen = topology.length(edge.getId)
+    val sprites = state.getSimVehiclesOnEdge(edge.getId)
 
-    val sortedSprites: IndexedSeq[VehicleSprite] = sprites.toIndexedSeq.sortBy(_.getPosition)
-    edge.setAttribute("lastVehicle", sortedSprites.headOption)
+    val sortedSprites: IndexedSeq[SimVehicle] = sprites.toIndexedSeq.sortBy(_.getPosition)
+    state.setLastVehicle(edge.getId, sortedSprites.headOption)
     if (handleSignal) {
-      signal.handleTraffic(sortedSprites, portId, edgeLen, deltaTime)
+      signal.handleTraffic(sortedSprites, portId, edgeLen, deltaTime, state)
     }
 
     if (sprites.nonEmpty) {
       val leadVehicle = sortedSprites.last
-      val trailingOnNextStreet: Option[VehicleSprite] =
-        leadVehicle.getNextEdge.getAttribute("lastVehicle", classOf[Option[VehicleSprite]])
+      val trailingOnNextStreet: Option[SimVehicle] =
+        state.getLastVehicle(leadVehicle.getNextEdgeId)
       val endSize =
         if (trailingOnNextStreet.isEmpty) sortedSprites.size - 1 else sortedSprites.size
       for (i <- 0 until endSize) {
@@ -72,16 +79,16 @@ case class IntersectionSubGraph(intersection: Intersection, graph: MultiGraph) {
   }
 
   private def nextCarAndPosition(
-      sortedSprites: IndexedSeq[VehicleSprite],
+      sortedSprites: IndexedSeq[SimVehicle],
       i: Int,
-      trailingOnNextStreet: Option[VehicleSprite]
-  ): (VehicleSprite, Double) =
+      trailingOnNextStreet: Option[SimVehicle]
+  ): (SimVehicle, Double) =
     if (i == sortedSprites.size - 1)
       (trailingOnNextStreet.get, 1.0 + trailingOnNextStreet.get.getPosition)
     else
       (sortedSprites(i + 1), sortedSprites(i + 1).getPosition)
 
-  private def adjustSpeedTowardNext(sprite: VehicleSprite, nextSprite: VehicleSprite, distanceToNext: Double): Unit = {
+  private def adjustSpeedTowardNext(sprite: SimVehicle, nextSprite: SimVehicle, distanceToNext: Double): Unit = {
     if (distanceToNext < signal.getFarDistance) {
       if (distanceToNext < signal.getOptimalDistance) {
         if (sprite.getSpeed >= nextSprite.getSpeed) {

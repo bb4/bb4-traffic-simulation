@@ -2,21 +2,20 @@ package com.barrybecker4.simulations.traffic.viewer
 
 import TrafficViewerFrame.{PARSER, SUFFIX, TRAFFIC_GRAPHS_PREFIX}
 import com.barrybecker4.graph.visualization.{GraphViewer, GraphViewerFrame}
-
 import com.barrybecker4.discreteoptimization.pathviewer.PathViewerFrame.*
-import com.barrybecker4.simulations.traffic.demo.TrafficOrchestrator
-import com.barrybecker4.simulations.traffic.viewer.adapter.{IntersectionSubGraph, TrafficStreamAdapter}
+import com.barrybecker4.simulations.traffic.demo.TrafficSimulationBootstrap
 import com.barrybecker4.simulations.traffic.graph.{TrafficGraph, TrafficGraphParser}
+import com.barrybecker4.simulations.traffic.simulation.TrafficSimulationConfig
+import com.barrybecker4.simulations.traffic.viewer.adapter.{TrafficGraphBundle, TrafficStreamAdapter}
 import org.graphstream.graph.Graph
 import org.graphstream.ui.layout.springbox.implementations.SpringBox
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import java.awt.{BorderLayout, Color}
+import java.awt.BorderLayout
 import java.io.File
 import javax.swing.*
 import scala.concurrent.Future
 import scala.io.Source
-
 
 /** Draws the traffic graph and simulates cars on streets.
  */
@@ -53,13 +52,11 @@ class TrafficViewerFrame extends GraphViewerFrame() {
       println("selected file is " + selectedFile.getName)
 
       val trafficGraph = loadTrafficGraph(selectedFile)
-      val adapter = TrafficStreamAdapter(trafficGraph)
-      val graph = adapter.createGraph()
-
-      //val graph = TrafficGraphGenerator().generateGraph()
-      //showTrafficGraph(graph)
+      val config = TrafficSimulationConfig.Default
+      val adapter = TrafficStreamAdapter(trafficGraph, config)
+      val bundle = adapter.build()
       val initialSpeed = 1.0
-      setGraph(graph, trafficGraph.numVehicles, initialSpeed, adapter.intersectionSubGraphs, "Traffic Demo")
+      setGraph(bundle, trafficGraph.numVehicles, initialSpeed, config, "Traffic Demo")
     }
   }
 
@@ -68,31 +65,36 @@ class TrafficViewerFrame extends GraphViewerFrame() {
     loadTrafficGraphFromName(graphName)
   }
 
-  def setGraph(graph: Graph, numVehicles: Int, 
-               initialSpeed: Double, 
-               intersectionSubGraphs: IndexedSeq[IntersectionSubGraph], 
-               title: String): Unit = {
-    
+  def setGraph(
+      bundle: TrafficGraphBundle,
+      numVehicles: Int,
+      initialSpeed: Double,
+      config: TrafficSimulationConfig,
+      title: String
+  ): Unit = {
+    val graph = bundle.graph
+
     if (viewer != null)
       remove(viewer.getViewPanel)
     viewer = new GraphViewer(graph)
     this.setTitle(title)
 
-    // If the graph nodes have location data, don't use an layout
-    if (graph.getNode(0).hasAttribute("xyz")) viewer.disableAutoLayout()
-    else viewer.enableAutoLayout(SpringBox()) //SpringBox()) // LinLog()
+    if (graph.getNodeCount > 0 && graph.getNode(0).hasAttribute("xyz")) viewer.disableAutoLayout()
+    else viewer.enableAutoLayout(SpringBox())
+
+    val state = TrafficSimulationBootstrap.createState(config, bundle)
+    val spriteGen = TrafficSimulationBootstrap.addSprites(bundle, state, numVehicles, initialSpeed, config)
 
     this.setLayout(new BorderLayout())
-    val statsPanel = new StatisticsPanel(graph)
+    val statsPanel = new StatisticsPanel(graph, state, spriteGen.getSpriteManager)
     this.add(statsPanel, BorderLayout.NORTH)
     this.add(viewer.getViewPanel, BorderLayout.CENTER)
-    
+
     this.repaint()
     setVisible(true)
 
-    // must be run in a separate thread or it doesn't do anything
     val displayFuture: Future[Unit] = Future {
-      new TrafficOrchestrator(graph, numVehicles, initialSpeed, intersectionSubGraphs, viewer.newViewerPipe()).run()
+      TrafficSimulationBootstrap.runOrchestrator(bundle, config, spriteGen, viewer.newViewerPipe())
     }
     displayFuture.onComplete {
       case scala.util.Success(_) =>

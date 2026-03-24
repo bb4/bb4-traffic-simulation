@@ -1,18 +1,17 @@
 package com.barrybecker4.simulations.traffic.signals
 
-import com.barrybecker4.simulations.traffic.signals.SignalState
 import com.barrybecker4.simulations.traffic.signals.SignalState.*
-import com.barrybecker4.simulations.traffic.vehicles.VehicleSprite
+import com.barrybecker4.simulations.traffic.simulation.{SimulationState, TrafficSimulationConfig}
+import com.barrybecker4.simulations.traffic.simulation.SimVehicle
 
 import java.util.concurrent.TimeUnit
 
-
 /**
- * Only one street is allowed to proceed at once (on green). 
+ * Only one street is allowed to proceed at once (on green).
  * That should prevent the possibility of accidents.
  * @param numStreets the number of streets leading into the intersection
  */
-class DumbTrafficSignal(numStreets: Int) extends TrafficSignal(numStreets) {
+class DumbTrafficSignal(numStreets: Int, config: TrafficSimulationConfig) extends TrafficSignal(numStreets, config) {
   private var currentStreet: Int = 0
   private var lightState: SignalState = RED
 
@@ -24,27 +23,20 @@ class DumbTrafficSignal(numStreets: Int) extends TrafficSignal(numStreets) {
 
   def shutdown(): Unit = scheduler.shutdown()
 
-  /**
-   * if the light is red, then first car should already be stopped
-   * if the light is yellow,
-   *   then all cars closer than speed * yellowTime should continue
-   *   then the first car further than speed * yellowTime should prepare to stop
-   * if the light is green, then all cars should continue
-   * In builder, add disconnected nodes around the intersection node to represent the traffic light.
-   *
-   * draw the lights at intersection nodes
-   */
-  def handleTraffic(sortedVehicles: IndexedSeq[VehicleSprite],
-                    portId: Int, edgeLen: Double, deltaTime: Double): Unit = {
+  override def handleTraffic(
+      sortedVehicles: IndexedSeq[SimVehicle],
+      portId: Int,
+      edgeLen: Double,
+      deltaTime: Double,
+      state: SimulationState
+  ): Unit = {
     if (sortedVehicles.isEmpty) return
     val lightState = getLightState(portId)
     val vehicleClosestToLight = sortedVehicles.last
 
     lightState match {
       case RED =>
-        // if the light is red, then first car should already be stopped if it is close to the light
         if (vehicleClosestToLight.getSpeed > 0.0 && vehicleClosestToLight.getPosition > 0.96) {
-          //println("vehicleClosestToLight.getSpeed=" + vehicleClosestToLight.getSpeed + " should have been 0")
           vehicleClosestToLight.stop()
         } else if (vehicleClosestToLight.getPosition > 0.85) {
           vehicleClosestToLight.setSpeed(vehicleClosestToLight.getSpeed * .98)

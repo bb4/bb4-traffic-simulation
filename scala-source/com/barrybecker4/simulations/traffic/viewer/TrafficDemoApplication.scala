@@ -1,25 +1,36 @@
 package com.barrybecker4.simulations.traffic.viewer
 
-import com.barrybecker4.graph.visualization.render.GraphViewerPipe
-import com.barrybecker4.simulations.traffic.demo.TrafficOrchestrator
+import com.barrybecker4.simulations.traffic.demo.TrafficSimulationBootstrap
+import com.barrybecker4.simulations.traffic.graph.TrafficGraphParser
+import com.barrybecker4.simulations.traffic.simulation.TrafficSimulationConfig
+import com.barrybecker4.simulations.traffic.viewer.adapter.TrafficStreamAdapter
 
+import java.io.File
+import scala.io.Source
 
 /**
- * Hardcoded demo graph from [[TrafficGraphGenerator]] (not loaded via [[com.barrybecker4.simulations.traffic.graph.TrafficGraphParser]]).
- *
- * Intersection traffic signals and [[com.barrybecker4.simulations.traffic.viewer.adapter.IntersectionSubGraph]] updates are not run here
- * because this graph is not wired through [[com.barrybecker4.simulations.traffic.viewer.adapter.TrafficStreamAdapter]].
- * Vehicles still move along edges. For full simulation, open a map from [[TrafficViewerFrame]].
+ * Headless-style demo: loads a default map from test data and runs the full simulation pipeline
+ * (same as opening a file in [[TrafficViewerFrame]]).
  */
 object TrafficDemoApplication {
   private val SPRITE_COUNT = 100
+  private val DefaultMapName = "dumbTrafficMap1"
+  private val DataPrefix = "scala-test/com/barrybecker4/simulations/traffic/data/"
+  private val Suffix = ".txt"
 
   def main(args: Array[String]): Unit = {
     System.setProperty("org.graphstream.ui", "org.graphstream.ui.swing.util.Display")
 
-    val graph = new TrafficGraphGenerator().generateGraph()
-    val pipeIn = graph.display(false).newViewerPipe()
-    val initialSpeed = 10.0
-    new TrafficOrchestrator(graph, SPRITE_COUNT, initialSpeed, IndexedSeq.empty, pipeIn).run()
+    val config = TrafficSimulationConfig.Default
+    val parser = TrafficGraphParser()
+    val file = new File(DataPrefix + DefaultMapName + Suffix)
+    val source = Source.fromFile(file.getAbsolutePath)
+    val trafficGraph = parser.parse(source, DefaultMapName + Suffix)
+    val adapter = TrafficStreamAdapter(trafficGraph, config)
+    val bundle = adapter.build()
+    val state = TrafficSimulationBootstrap.createState(config, bundle)
+    val spriteGen = TrafficSimulationBootstrap.addSprites(bundle, state, SPRITE_COUNT, initialSpeed = 10.0, config)
+    val pipeIn = bundle.graph.display(false).newViewerPipe()
+    TrafficSimulationBootstrap.runOrchestrator(bundle, config, spriteGen, pipeIn)
   }
 }

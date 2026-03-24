@@ -15,7 +15,6 @@ bb4 {
 
 dependencies {
     implementation 'com.barrybecker4:bb4-common:2.0-SNAPSHOT'
-    implementation 'com.barrybecker4:bb4-shortest-paths:2.0-SNAPSHOT'
     implementation 'com.barrybecker4:bb4-math:2.0-SNAPSHOT'
     // for graph visualization
     implementation 'org.graphstream:gs-core:2.0'

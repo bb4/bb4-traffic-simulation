@@ -1,6 +1,8 @@
 package com.barrybecker4.simulations.traffic.signals
 
-enum TrafficSignalType(val create: Int => TrafficSignal) {
-  case DUMB_TRAFFIC_SIGNAL extends TrafficSignalType(numStreets => new DumbTrafficSignal(numStreets))
-  case SEMAPHORE_TRAFFIC_SIGNAL extends TrafficSignalType(numStreets => new SemaphoreTrafficSignal(numStreets))
+import com.barrybecker4.simulations.traffic.simulation.TrafficSimulationConfig
+
+enum TrafficSignalType(val create: (Int, TrafficSimulationConfig) => TrafficSignal) {
+  case DUMB_TRAFFIC_SIGNAL extends TrafficSignalType((n, c) => new DumbTrafficSignal(n, c))
+  case SEMAPHORE_TRAFFIC_SIGNAL extends TrafficSignalType((n, c) => new SemaphoreTrafficSignal(n, c))
 }

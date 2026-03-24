@@ -1,34 +1,29 @@
 package com.barrybecker4.simulations.traffic.vehicles
 
+import com.barrybecker4.simulations.traffic.simulation.{RoadTopology, SimulationState, TrafficSimulationConfig}
 import org.graphstream.graph.{Edge, Graph}
 import org.graphstream.ui.spriteManager.SpriteManager
 
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.*
 
+class VehicleSpriteManager(
+    graph: Graph,
+    val state: SimulationState,
+    val topology: RoadTopology,
+    val config: TrafficSimulationConfig
+) extends SpriteManager(graph) {
 
-class VehicleSpriteManager(graph: Graph) extends SpriteManager(graph) {
-  
   def getVehiclesOnEdge(edgeId: String): mutable.Set[VehicleSprite] = {
-    val edge: Edge = getEdge(edgeId)
-    var vehicleSprites: mutable.Set[VehicleSprite] =
-      edge.getAttribute[mutable.Set[VehicleSprite]]("vehicles", classOf[mutable.Set[VehicleSprite]])
-      
-    if (vehicleSprites == null) {
-      vehicleSprites = mutable.Set() 
-      edge.setAttribute("vehicles", vehicleSprites)
+    val result = mutable.Set.empty[VehicleSprite]
+    state.getSimVehiclesOnEdge(edgeId).foreach { sv =>
+      result += getSprite(sv.id).asInstanceOf[VehicleSprite]
     }
-    vehicleSprites
+    result
   }
 
-  def addVehicleToEdge(edgeId: String, vehicleSprite: VehicleSprite): Unit =
-    getVehiclesOnEdge(edgeId).add(vehicleSprite)
+  def addVehicleToEdge(edgeId: String, vehicleSprite: VehicleSprite): Unit = ()
 
   def getEdge(edgeId: String): Edge = graph.getEdge(edgeId)
 
-  def removeVehicleFromEdge(edgeId: String, vehicleSprite: VehicleSprite): Unit = {
-    val v = getVehiclesOnEdge(edgeId).remove(vehicleSprite)
-    assert(v)
-  }
-
+  def removeVehicleFromEdge(edgeId: String, vehicleSprite: VehicleSprite): Unit = ()
 }

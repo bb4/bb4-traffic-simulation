@@ -1,17 +1,16 @@
 package com.barrybecker4.simulations.traffic.viewer
 
 import com.barrybecker4.common.format.FormatUtil
-import com.barrybecker4.simulations.traffic.vehicles.{VehicleSprite, VehicleStatistics}
-import org.graphstream.graph.{Edge, Graph}
+import com.barrybecker4.simulations.traffic.simulation.SimulationState
+import com.barrybecker4.simulations.traffic.vehicles.{VehicleSprite, VehicleSpriteManager, VehicleStatistics}
+import org.graphstream.graph.Graph
 
 import java.awt.BorderLayout
 import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
 import javax.swing.{JPanel, JTable}
 import javax.swing.table.{AbstractTableModel, TableColumn}
-import scala.collection.mutable
-import scala.jdk.CollectionConverters.*
 
-class StatisticsPanel(graph: Graph) extends JPanel {
+class StatisticsPanel(graph: Graph, state: SimulationState, spriteManager: VehicleSpriteManager) extends JPanel {
 
   private val data = Array(
     Array("Time", "<total time>", "last 2 seconds"),
@@ -76,19 +75,10 @@ class StatisticsPanel(graph: Graph) extends JPanel {
     this.repaint()
   }
 
-  private def getAllVehicles: Set[VehicleSprite] = {
-    var allVehicles = Set[VehicleSprite]()
-    val edges = graph.edges.iterator().asScala
-    for (edge <- edges) {
-      allVehicles ++= getVehiclesOnEdge(edge.getId)
-    }
-    allVehicles
-  }
+  private def getAllVehicles: Set[VehicleSprite] =
+    state.allSimVehicles.flatMap { v =>
+      Option(spriteManager.getSprite(v.id)).map(_.asInstanceOf[VehicleSprite])
+    }.toSet
 
-  private def getVehiclesOnEdge(edgeId: String): mutable.Set[VehicleSprite] = {
-    val edge: Edge = graph.getEdge(edgeId)
-    val vehicleSprites: mutable.Set[VehicleSprite] =
-      edge.getAttribute("vehicles", classOf[mutable.Set[VehicleSprite]])
-    if (vehicleSprites == null) mutable.Set() else vehicleSprites
-  }
 }
+

@@ -1,7 +1,7 @@
 package com.barrybecker4.simulations.traffic.vehicles.placement
 
-import com.barrybecker4.simulations.traffic.vehicles.VehicleSpriteManager
-import com.barrybecker4.simulations.traffic.vehicles.placement.VehiclePlacer.RND
+import com.barrybecker4.simulations.traffic.simulation.{RoadTopology, TrafficSimulationConfig}
+import com.barrybecker4.simulations.traffic.vehicles.{VehicleSprite, VehicleSpriteManager}
 import com.barrybecker4.simulations.traffic.viewer.TrafficGraphUtil
 import org.graphstream.graph.{Edge, Graph}
 import org.graphstream.ui.spriteManager.Sprite
@@ -10,25 +10,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.jdk.CollectionConverters.*
 import scala.util.Random
 
-
 /**
  * Determines vehicle placements along all the edges of a provided graph.
- * We don't want the vehicles placed perfectly uniformly because that would not be natural.
- * Instead, they should be placed randomly, but with no overlap.
- * Throw an error if there are so many vehicles that they cannot be placed without overlap.
- * Each edge will have a maximum number of vehicles that it can hold. Do not exceed that.
- *
  * Do not place vehicles in intersections initially.
  */
 object VehiclePlacer {
-  /** The minimum gap between vehicles */
-  private val MIN_GAP = 8.0
-  /**
-   * This will not be exact because the sprites size is relative to the window size.
-   * Sprites get proportionally larger as the window size shrinks.
-   * See traffic.css - size: 12px, 6px;
-   */
-  private val VEHICLE_LENGTH = 20.0
   private val VEHICLE_COLORS = Array[String](
     "#77225599;",
     "#77663399;",
@@ -38,7 +24,14 @@ object VehiclePlacer {
   private val RND: Random = new Random(0)
 }
 
-class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph: Graph) {
+class VehiclePlacer(
+    private val sprites: VehicleSpriteManager,
+    private val graph: Graph,
+    private val topology: RoadTopology,
+    private val config: TrafficSimulationConfig,
+    private val numVehicles: Int
+) {
+
   private val streetEdges: List[Edge] =
     graph.edges.iterator().asScala.filter(TrafficGraphUtil.isStreet).toList
 
@@ -49,21 +42,7 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
     allocateVehicles(edgeIdToNumVehicles)
   }
 
-  /**
-   * Each edge can have an expected allocation assuming uniform distribution.
-   * expectedAllocation = edgeLen / totalLen * numVehicles.
-   * Each edge can support a maximum number of vehicles
-   * maxAllocation = floor(edgeLen / (MIN_GAP + vehicleLen))
-   * If expectedAllocation > maxAllocation for any edge, then throw error.
-   *
-   * The actual number of vehicles to put on an edge can be
-   * delta = maxAllocation - expectedAllocation
-   * random( expectedAllocation - delta, expectedAllocation + delta + 1)
-   * Then if there are too few allocated, randomly add them from edges until numVehicles reached.
-   * If too many allocation, randomly remove them from edges until numVehicles reached.
-   */
   private def determineNumVehiclesOnEdges: Map[String, Int] = {
-    val numVehicles = sprites.getSpriteCount
     val totalLen = findTotalLengthOfAllEdges
     var edgeIdToNumVehicles = createInitialEdgeAllocations(numVehicles, totalLen)
     edgeIdToNumVehicles = fineTuneEdgeAllocations(edgeIdToNumVehicles, numVehicles)
@@ -90,7 +69,7 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
       assert(delta >= 0)
       val min = math.max(0, expectedAllocation - delta)
       val max = math.min(maxAllocation, min + 2 * delta)
-      val randomAllocation = min + RND.nextInt(max - min + 1)
+      val randomAllocation = min + VehiclePlacer.RND.nextInt(max - min + 1)
       assert(randomAllocation <= maxAllocation)
       totalAllocation += randomAllocation
       edgeIdToNumVehicles += (edgeId -> randomAllocation)
@@ -99,14 +78,13 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
   }
 
   private def maxVehiclesForEdgeLength(edgeLen: Double): Int =
-    (edgeLen / (VehiclePlacer.MIN_GAP + VehiclePlacer.VEHICLE_LENGTH)).toInt
+    (edgeLen / (config.placerMinGap + config.placerVehicleLength)).toInt
 
-  /** Fine-tune in the event that we have too many or too few vehicles allocated */
   private def fineTuneEdgeAllocations(edgeIdToNumVehicles: Map[String, Int], numVehicles: Int): Map[String, Int] = {
     var edgeIdToNum = edgeIdToNumVehicles
     val edgeIds = edgeIdToNum.keySet.toArray
     while (totalAllocation > numVehicles) {
-      val rndId = edgeIds(RND.nextInt(edgeIds.length))
+      val rndId = edgeIds(VehiclePlacer.RND.nextInt(edgeIds.length))
       if (edgeIdToNum(rndId) > 0) {
         edgeIdToNum += (rndId -> (edgeIdToNum(rndId) - 1))
         totalAllocation -= 1
@@ -114,7 +92,7 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
     }
 
     while (totalAllocation < numVehicles) {
-      val rndId = edgeIds(RND.nextInt(edgeIds.length))
+      val rndId = edgeIds(VehiclePlacer.RND.nextInt(edgeIds.length))
       val edge = graph.getEdge(rndId)
       if (edgeIdToNum(rndId) < getMaxAllocation(edge)) {
         edgeIdToNum += (rndId -> (edgeIdToNum(rndId) + 1))
@@ -124,15 +102,6 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
     edgeIdToNum
   }
 
-  /**
-   * Allocation algorithm
-   *  - Divide the edge into maxAllocation equal slots.
-   *  - Create an array of that same length
-   *  - Using vehicle hash mod maxVehicles for that edge,
-   *    place each into the array using array hashing algorithm,
-   *    which resolves conflicts by moving to the next available slot.
-   *  - Place the sprites in the array into the edge at the corresponding position.
-   */
   private def allocateVehicles(edgeIdToNumVehicles: Map[String, Int]): Unit = {
     val spriteCt = new AtomicInteger
     streetEdges.foreach { edge =>
@@ -151,17 +120,17 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
       s"now adding $numVehiclesToAdd vehicles to edge ${edge.getId} total avail slots = ${spriteSlots.length} with maxAllocation=$maxAllocation"
     )
     for (_ <- 0 until numVehiclesToAdd) {
-      var positionIdx = RND.nextInt(spriteSlots.length)
+      var positionIdx = VehiclePlacer.RND.nextInt(spriteSlots.length)
       while (spriteSlots(positionIdx) != null)
         positionIdx = (positionIdx + 1) % spriteSlots.length
       val sprite = sprites.addSprite(s"${spriteCount.get()}")
-      val color = VehiclePlacer.VEHICLE_COLORS(RND.nextInt(VehiclePlacer.VEHICLE_COLORS.length))
+      val color = VehiclePlacer.VEHICLE_COLORS(VehiclePlacer.RND.nextInt(VehiclePlacer.VEHICLE_COLORS.length))
       sprite.setAttribute("ui.style", s"fill-color: $color")
       spriteCount.incrementAndGet()
       val pos = 0.01 + 0.98 * positionIdx.toDouble / spriteSlots.length
       sprite.setPosition(pos)
       spriteSlots(positionIdx) = sprite
-      sprite.attachToEdge(edge.getId)
+      sprite.asInstanceOf[VehicleSprite].attachToEdge(edge.getId)
     }
   }
 
@@ -172,5 +141,5 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
     edge.getAttribute("maxAllocation", classOf[Object]).asInstanceOf[Integer].intValue()
 
   private def getEdgeLen(edge: Edge): Double =
-    edge.getAttribute("length", classOf[Object]).asInstanceOf[Double]
+    topology.length(edge.getId)
 }

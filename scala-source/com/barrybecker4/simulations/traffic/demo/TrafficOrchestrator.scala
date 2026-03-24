@@ -1,42 +1,41 @@
 package com.barrybecker4.simulations.traffic.demo
 
-import org.graphstream.graph.Graph
 import org.graphstream.ui.view.ViewerPipe
 import com.barrybecker4.graph.visualization.render.GraphViewerPipe
+import com.barrybecker4.simulations.traffic.simulation.{SpriteSync, TrafficSimulationConfig, VehicleSimulationEngine}
 import com.barrybecker4.simulations.traffic.vehicles.VehicleSpriteGenerator
 import com.barrybecker4.simulations.traffic.viewer.TrafficGraphUtil.sleep
 import com.barrybecker4.simulations.traffic.viewer.adapter.IntersectionSubGraph
-import com.barrybecker4.simulations.traffic.demo.TrafficOrchestrator.DELTA_TIME_SECS
 
-
-
-object TrafficOrchestrator {
-  private val DELTA_TIME_SECS = 0.02
-}
-
-class TrafficOrchestrator(graph: Graph, numSprites: Int, initialSpeed: Double,
-                          intersectionSubGraphs: IndexedSeq[IntersectionSubGraph], viewerPipe: ViewerPipe) {
+class TrafficOrchestrator(
+    config: TrafficSimulationConfig,
+    intersectionSubGraphs: IndexedSeq[IntersectionSubGraph],
+    viewerPipe: ViewerPipe,
+    spriteGenerator: VehicleSpriteGenerator
+) {
   final private val viewerListener = new ViewerAdapter
-  final private val spriteGenerator: VehicleSpriteGenerator = new VehicleSpriteGenerator(numSprites, initialSpeed)
 
   def run(): Unit = {
     val pipeIn = new GraphViewerPipe("my pipe", viewerPipe)
     pipeIn.addViewerListener(viewerListener)
 
     try {
-      spriteGenerator.addSprites(graph)
       simulateTrafficFlow(pipeIn)
-    }
-    catch
+    } catch {
       case e: Exception => throw new IllegalStateException(e)
+    }
   }
 
   private def simulateTrafficFlow(pipeIn: ViewerPipe): Unit = {
+    val state = spriteGenerator.getSpriteManager.state
+    val topology = state.topology
+    val delta = config.deltaTimeSecs
     while (viewerListener.isLooping) {
-      //pipeIn.pump()
-      intersectionSubGraphs.foreach(intersectionSubGraph => intersectionSubGraph.update(DELTA_TIME_SECS, spriteGenerator.getSpriteManager))
-      spriteGenerator.moveSprites(DELTA_TIME_SECS)
-      sleep(2)
+      intersectionSubGraphs.foreach(_.update(delta, state, topology))
+      VehicleSimulationEngine.moveAll(state.allSimVehicles, delta, topology, state)
+      SpriteSync.syncAll(spriteGenerator.getSpriteManager)
+      val sleepMs = (delta * 1000.0 * config.realtimeSpeedFactor).toLong
+      if (sleepMs > 0) Thread.sleep(sleepMs)
     }
   }
 }

@@ -1,26 +1,30 @@
 package com.barrybecker4.simulations.traffic.signals
 
-import com.barrybecker4.simulations.traffic.signals.SignalState
 import com.barrybecker4.simulations.traffic.signals.SignalState.{GREEN, RED, YELLOW}
-import com.barrybecker4.simulations.traffic.vehicles.VehicleSprite
+import com.barrybecker4.simulations.traffic.simulation.{SimulationState, TrafficSimulationConfig}
+import com.barrybecker4.simulations.traffic.simulation.SimVehicle
 import org.graphstream.graph.Node
 
 import java.util.concurrent.{Executors, ScheduledExecutorService}
 
-
-trait TrafficSignal(numStreets: Int) {
+trait TrafficSignal(numStreets: Int, val config: TrafficSimulationConfig) {
 
   protected val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
   protected var yellowStartTime = 0L
 
-  def getOptimalDistance: Double = 30.0
-  def getFarDistance: Double = 200.0
-  def getYellowDurationSecs: Int = 2
-  def getGreenDurationSecs: Int = 4
+  def getOptimalDistance: Double = config.signalOptimalDistance
+  def getFarDistance: Double = config.signalFarDistance
+  def getYellowDurationSecs: Int = config.signalYellowDurationSecs
+  def getGreenDurationSecs: Int = config.signalGreenDurationSecs
   def getLightState(port: Int): SignalState
 
-  def handleTraffic(sortedVehicles: IndexedSeq[VehicleSprite], portId: Int,
-                    edgeLen: Double, deltaTime: Double): Unit
+  def handleTraffic(
+      sortedVehicles: IndexedSeq[SimVehicle],
+      portId: Int,
+      edgeLen: Double,
+      deltaTime: Double,
+      state: SimulationState
+  ): Unit
 
   def showLight(node: Node, portId: Int): Unit = {
     val lightState = getLightState(portId)
@@ -32,8 +36,12 @@ trait TrafficSignal(numStreets: Int) {
     println(states)
   }
 
-  protected def handleTrafficBasedOnLightState(sortedVehicles: IndexedSeq[VehicleSprite],
-                                               portId: Int, edgeLen: Double, deltaTime: Double): Unit = {
+  protected def handleTrafficBasedOnLightState(
+      sortedVehicles: IndexedSeq[SimVehicle],
+      portId: Int,
+      edgeLen: Double,
+      deltaTime: Double
+  ): Unit = {
     val lightState = getLightState(portId)
     if (sortedVehicles.isEmpty) return
     val vehicleClosestToLight = sortedVehicles.last
@@ -56,14 +64,14 @@ trait TrafficSignal(numStreets: Int) {
     }
   }
 
-  /** Vehicle that is in the “commit or stop” band for yellow, if any. */
+  /** Vehicle that is in the "commit or stop" band for yellow, if any. */
   private def findVehicleAffectedByYellow(
-      sortedVehicles: IndexedSeq[VehicleSprite],
+      sortedVehicles: IndexedSeq[SimVehicle],
       edgeLen: Double,
       yellowRemainingTime: Double
-  ): Option[VehicleSprite] = {
+  ): Option[SimVehicle] = {
     var idx = sortedVehicles.size
-    var found: Option[VehicleSprite] = None
+    var found: Option[SimVehicle] = None
     while (found.isEmpty && idx > 0) {
       idx -= 1
       val vehicle = sortedVehicles(idx)
