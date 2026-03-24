@@ -17,13 +17,14 @@ object TrafficGraphUtil {
   def isStreet(edge: Edge): Boolean = edge.getAttribute("type") == STREET_TYPE
   def isIntersection(edge: Edge): Boolean = edge.getAttribute("type") == INTERSECTION_TYPE
 
-  private def computeEdgeLength(edge: Edge) = {
+  private def computeEdgeLength(edge: Edge): Double = {
     val source = edge.getSourceNode
     val target = edge.getTargetNode
-    //System.out.println("source = "+ Arrays.toString(source.getAttribute("xyz", Object[].class)) + " target = " + target.getAttribute("xyz", Object[].class));
     val sourceXYZ = source.getAttribute("xyz", classOf[Array[AnyRef]])
     val targetXYZ = target.getAttribute("xyz", classOf[Array[AnyRef]])
-    Math.sqrt(Math.pow(targetXYZ(0).asInstanceOf[Double] - sourceXYZ(0).asInstanceOf[Double], 2) + Math.pow(targetXYZ(1).asInstanceOf[Double] - sourceXYZ(1).asInstanceOf[Double], 2))
+    val dx = targetXYZ(0).asInstanceOf[Double] - sourceXYZ(0).asInstanceOf[Double]
+    val dy = targetXYZ(1).asInstanceOf[Double] - sourceXYZ(1).asInstanceOf[Double]
+    Math.hypot(dx, dy)
   }
 
   def sleep(ms: Long): Unit = {

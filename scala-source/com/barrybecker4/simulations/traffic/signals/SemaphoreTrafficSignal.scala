@@ -1,16 +1,10 @@
 package com.barrybecker4.simulations.traffic.signals
 
-import com.barrybecker4.simulations.traffic.signals.{SignalState, TrafficSignal}
+import com.barrybecker4.simulations.traffic.signals.SignalState
 import com.barrybecker4.simulations.traffic.signals.SignalState.*
-
-import java.util.concurrent.{Executors, ScheduledFuture, Semaphore, TimeUnit}
-import concurrent.duration.DurationInt
-import com.barrybecker4.simulations.traffic.signals.SemaphoreTrafficSignal.*
 import com.barrybecker4.simulations.traffic.vehicles.VehicleSprite
-import com.barrybecker4.simulations.traffic.viewer.TrafficGraphUtil.sleep
-import org.graphstream.graph.Node
 
-import scala.annotation.tailrec
+import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
 /**
  * A more intelligent traffic light system that uses a semaphore to control the traffic lights.
@@ -24,9 +18,11 @@ import scala.annotation.tailrec
  * @param numStreets the number of streets leading into the intersection
  */
 class SemaphoreTrafficSignal(numStreets: Int) extends TrafficSignal(numStreets) {
+  import SemaphoreTrafficSignal.NoStreetHoldsSemaphore
+
   private val lightStates: Array[SignalState] = Array.fill(numStreets)(RED)
   private var currentSchedule: ScheduledFuture[?] = _
-  private var streetWithSemaphore: Int = AVAILABLE
+  private var streetWithSemaphore: Int = NoStreetHoldsSemaphore
   private var lastToBecomeRed: Int = -1
 
   override def getGreenDurationSecs: Int = 8
@@ -44,35 +40,38 @@ class SemaphoreTrafficSignal(numStreets: Int) extends TrafficSignal(numStreets) 
                               portId: Int, edgeLen: Double): Unit = {
     val lightState = getLightState(portId)
     streetWithSemaphore match {
-      case AVAILABLE =>
+      case NoStreetHoldsSemaphore =>
         assert(lightState == RED, "The light state was unexpectedly " + lightState)
         trySwitchingToGreen(portId, sortedVehicles, edgeLen)
       case `portId` =>
         assert(lightState != RED, "The light state was unexpectedly " + lightState)
-        if (areCarsComing(sortedVehicles, edgeLen)) {
-          // already have it, stay yellow or green, unless we are headed for a jammed street
-          // check if the last car is headed for a jammed street. If so, turn yellow.
-          val lastCar = sortedVehicles.last
-          val isJammed = isNextStreetJammed(lastCar)
-          if (isJammed && lightState == GREEN) {
-            println("Next street is jammed, so switching to yellow")
-            switchToYellow(portId, sortedVehicles, edgeLen)
-          }
-        } else if (currentSchedule != null && lightState == GREEN) {
-          // No cars are coming, so give up the semaphore
-          println("No cars coming on street " + portId + " so canceling schedule and switching to red")
-          currentSchedule.cancel(true)
-          currentSchedule = null
-          switchToRed(portId)
-        }
+        whenHoldingSemaphore(portId, sortedVehicles, edgeLen, lightState)
       case _ =>
-        // do nothing. Some other street has the semaphore
-        //println("different street has the semaphore = " + streetWithSemaphore + " port=" + portId + " lightState=" + lightState)
+        ()
+    }
+  }
+
+  private def whenHoldingSemaphore(
+      portId: Int,
+      sortedVehicles: IndexedSeq[VehicleSprite],
+      edgeLen: Double,
+      lightState: SignalState
+  ): Unit = {
+    if (areCarsComing(sortedVehicles, edgeLen)) {
+      val lastCar = sortedVehicles.last
+      if (isNextStreetJammed(lastCar) && lightState == GREEN) {
+        println("Next street is jammed, so switching to yellow")
+        switchToYellow(portId, sortedVehicles, edgeLen)
+      }
+    } else if (currentSchedule != null && lightState == GREEN) {
+      println("No cars coming on street " + portId + " so canceling schedule and switching to red")
+      currentSchedule.cancel(true)
+      currentSchedule = null
+      switchToRed(portId)
     }
   }
 
   private def isNextStreetJammed(lastCar: VehicleSprite): Boolean = {
-    // If any car on the intersection is stopped, then the next street is jammed.
     val lastIntersectionCar = lastCar.getNextEdge.getAttribute("lastVehicle", classOf[Option[VehicleSprite]])
     if (lastIntersectionCar.nonEmpty && lastIntersectionCar.get.getSpeed < 0.1) {
       true
@@ -83,15 +82,16 @@ class SemaphoreTrafficSignal(numStreets: Int) extends TrafficSignal(numStreets) 
       val len = nextStreet.getAttribute("length", classOf[Object]).asInstanceOf[Double]
       val lastVehicleOnNextStreet =
         nextStreet.getAttribute("lastVehicle", classOf[Option[VehicleSprite]])
-      if (lastVehicleOnNextStreet.isEmpty) false
-      else lastVehicleOnNextStreet.get.getSpeed < 0.1 && lastVehicleOnNextStreet.get.getPosition * len < getFarDistance
+      lastVehicleOnNextStreet.exists { v =>
+        v.getSpeed < 0.1 && v.getPosition * len < getFarDistance
+      }
     }
   }
 
   private def trySwitchingToGreen(street: Int, sortedVehicles: IndexedSeq[VehicleSprite],
                             edgeLen: Double): Unit = {
     assert(lightStates(street) == RED)
-    assert(streetWithSemaphore == AVAILABLE, "semaphore was not available. It was " + streetWithSemaphore)
+    assert(streetWithSemaphore == NoStreetHoldsSemaphore, "semaphore was not available. It was " + streetWithSemaphore)
     if (lastToBecomeRed != street) {
       if (areCarsComing(sortedVehicles, edgeLen) && !isNextStreetJammed(sortedVehicles.last)) {
         lightStates(street) = GREEN
@@ -125,7 +125,7 @@ class SemaphoreTrafficSignal(numStreets: Int) extends TrafficSignal(numStreets) 
     }
     lightStates(street) = RED
     assert(streetWithSemaphore == street)
-    streetWithSemaphore = AVAILABLE
+    streetWithSemaphore = NoStreetHoldsSemaphore
     lastToBecomeRed = street
   }
 
@@ -135,22 +135,6 @@ class SemaphoreTrafficSignal(numStreets: Int) extends TrafficSignal(numStreets) 
 
 
 object SemaphoreTrafficSignal {
-
-  private val AVAILABLE = -1
-  private val JAM_FACTOR = 2.0
-
-  def main(args: Array[String]): Unit = {
-    val numStreets = 5
-    val trafficLight = new SemaphoreTrafficSignal(numStreets)
-    val checkInterval = 1.second
-
-    val executor = Executors.newScheduledThreadPool(1)
-    executor.scheduleAtFixedRate(new Runnable {
-      def run(): Unit = trafficLight.printLightStates()
-    }, 0, checkInterval.toMillis, TimeUnit.MILLISECONDS)
-
-    Thread.sleep(30000)
-    executor.shutdown()
-    trafficLight.shutdown()
-  }
+  /** Sentinel: no incoming street currently holds the green/yellow phase. */
+  private[signals] val NoStreetHoldsSemaphore: Int = -1
 }

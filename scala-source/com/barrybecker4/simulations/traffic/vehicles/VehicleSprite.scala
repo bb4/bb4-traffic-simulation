@@ -95,7 +95,7 @@ class VehicleSprite(identifier: String, initialSpeed: Double, manager: VehicleSp
 
     val edgeId = getCurrentEdge.getId
     if (DEBUG && (this.getId == "60" || edgeId == "i2:p0-i1:p0"))
-      setAttribute("ui.label", s"id: $getId pct: ${positionPct.toFloat}        s: ${speed.toFloat} edge:$edgeId")
+      setAttribute("ui.label", s"id: ${getId} pct: ${positionPct.toFloat}        s: ${speed.toFloat} edge:$edgeId")
     else
       setAttribute("ui.label", "")
   }

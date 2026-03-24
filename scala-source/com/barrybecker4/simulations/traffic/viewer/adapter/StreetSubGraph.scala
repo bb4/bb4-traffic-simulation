@@ -58,10 +58,6 @@ case class StreetSubGraph(street: Street,
       dst(0), dst(1), 0.0)
   }
 
-  private def halfway(src: Array[AnyRef], dst: Array[AnyRef]): FloatLocation = {
-    FloatLocation((src(0).toString.toFloat + dst(0).toString.toFloat) / 2.0f, (src(1).toString.toFloat + dst(1).toString.toFloat) / 2.0f)
-  }
-
   private def getPortSpokePoint(pt: Array[AnyRef], intersection: Intersection, portId: Int): FloatLocation = {
     val radialPos = getRadialPosition(intersection, portId)
     FloatLocation(pt(0).toString.toFloat + radialPos.x, pt(1).toString.toFloat + radialPos.y)
@@ -84,7 +80,4 @@ case class StreetSubGraph(street: Street,
     else
       s"i${street.intersectionIdx2}:p${street.portIdx2}-i${street.intersectionIdx1}:p${street.portIdx1}"
   }
-
-  private def ptToString(array: Array[AnyRef]): String =
-    s"${array(0).toString}, ${array(1).toString}"
 }

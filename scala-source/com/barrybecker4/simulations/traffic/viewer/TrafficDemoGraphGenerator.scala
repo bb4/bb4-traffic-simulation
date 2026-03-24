@@ -1,28 +1,8 @@
 package com.barrybecker4.simulations.traffic.viewer
 
-import TrafficGraphGenerator.loadStyleSheet
+import com.barrybecker4.simulations.traffic.viewer.TrafficGraphUtil.addEdgeLengths
 import org.graphstream.graph.Edge
-import org.graphstream.graph.Graph
-import org.graphstream.graph.Node
 import org.graphstream.graph.implementations.MultiGraph
-
-import java.io.IOException
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.util.stream.Collectors
-import scala.io.Source
-import scala.util.Using
-import com.barrybecker4.simulations.traffic.viewer.TrafficGraphUtil.{addEdgeLengths, showNodeLabels}
-
-
-object TrafficGraphGenerator {
-  private val STYLE_SHEET_PATH = "scala-source/com/barrybecker4/simulations/traffic/viewer/adapter/traffic.css"
-
-  private def loadStyleSheet(): String = {
-    Using(Source.fromFile(STYLE_SHEET_PATH)) { source => source.mkString }
-      .getOrElse(throw new RuntimeException(s"Failed to read the style sheet from $STYLE_SHEET_PATH"))
-  }
-}
 
 class TrafficGraphGenerator {
 
@@ -32,7 +12,7 @@ class TrafficGraphGenerator {
     graph.setAttribute("ui.antialias")
     populateGraph(graph)
     graph.setAttribute("ui.quality")
-    graph.setAttribute("ui.stylesheet", loadStyleSheet())
+    graph.setAttribute("ui.stylesheet", GraphStreamStyle.loadStyleSheet())
     graph
   }
 
@@ -87,7 +67,6 @@ class TrafficGraphGenerator {
     edge = graph.addEdge("D5D4", "D5", "D4", true)
     setEdgePoint(edge, 0.0d, -240.0d)
     addEdgeLengths(graph)
-    // showNodeLabels(graph)
   }
 
   // The control point for the edge

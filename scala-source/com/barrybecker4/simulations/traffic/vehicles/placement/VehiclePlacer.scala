@@ -3,12 +3,11 @@ package com.barrybecker4.simulations.traffic.vehicles.placement
 import com.barrybecker4.simulations.traffic.vehicles.VehicleSpriteManager
 import com.barrybecker4.simulations.traffic.vehicles.placement.VehiclePlacer.RND
 import com.barrybecker4.simulations.traffic.viewer.TrafficGraphUtil
-import org.graphstream.graph.Edge
-import org.graphstream.graph.Graph
+import org.graphstream.graph.{Edge, Graph}
 import org.graphstream.ui.spriteManager.Sprite
-import org.graphstream.ui.spriteManager.SpriteManager
 
 import java.util.concurrent.atomic.AtomicInteger
+import scala.jdk.CollectionConverters.*
 import scala.util.Random
 
 
@@ -30,7 +29,6 @@ object VehiclePlacer {
    * See traffic.css - size: 12px, 6px;
    */
   private val VEHICLE_LENGTH = 20.0
-  // Colors can be #rrggbbaa; where aa is opacity (optional)
   private val VEHICLE_COLORS = Array[String](
     "#77225599;",
     "#77663399;",
@@ -41,9 +39,10 @@ object VehiclePlacer {
 }
 
 class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph: Graph) {
-  private val streetEdges = graph.edges.filter(e => TrafficGraphUtil.isStreet(e)).toList
+  private val streetEdges: List[Edge] =
+    graph.edges.iterator().asScala.filter(TrafficGraphUtil.isStreet).toList
 
-  private var totalAllocation: Integer = 0
+  private var totalAllocation: Int = 0
 
   def placeVehicleSprites(): Unit = {
     val edgeIdToNumVehicles = determineNumVehiclesOnEdges
@@ -63,64 +62,67 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
    * Then if there are too few allocated, randomly add them from edges until numVehicles reached.
    * If too many allocation, randomly remove them from edges until numVehicles reached.
    */
-  private def determineNumVehiclesOnEdges = {
+  private def determineNumVehiclesOnEdges: Map[String, Int] = {
     val numVehicles = sprites.getSpriteCount
-    val totalLen = findTotaLengthOfAllEdges(graph)
-    var edgeIdToNumVehicles: Map[String, Integer] = createInitialEdgeAllocations(numVehicles, totalLen)
+    val totalLen = findTotalLengthOfAllEdges
+    var edgeIdToNumVehicles = createInitialEdgeAllocations(numVehicles, totalLen)
     edgeIdToNumVehicles = fineTuneEdgeAllocations(edgeIdToNumVehicles, numVehicles)
 
-    val sumAllocatedVehicles = getSumAllocatedVehicles(edgeIdToNumVehicles)
+    val sumAllocatedVehicles = edgeIdToNumVehicles.values.sum
     assert(numVehicles == sumAllocatedVehicles)
     edgeIdToNumVehicles
   }
 
-  private def createInitialEdgeAllocations(numVehicles: Int, totalLen: Double): Map[String, Integer] = {
-    var edgeIdToNumVehicles: Map[String, Integer] = Map()
+  private def createInitialEdgeAllocations(numVehicles: Int, totalLen: Double): Map[String, Int] = {
+    var edgeIdToNumVehicles = Map.empty[String, Int]
     totalAllocation = 0
-    streetEdges.forEach((edge: Edge) => {
+    streetEdges.foreach { edge =>
       val edgeId = edge.getId
       val edgeLen = getEdgeLen(edge)
       val expectedAllocation = (numVehicles * edgeLen / totalLen).toInt
-      val maxAllocation = (edgeLen / (VehiclePlacer.MIN_GAP + VehiclePlacer.VEHICLE_LENGTH)).toInt
+      val maxAllocation = maxVehiclesForEdgeLength(edgeLen)
       if (expectedAllocation > maxAllocation)
-        throw new IllegalArgumentException("Trying to allocate more vehicles (" + expectedAllocation + ") than the street will hold (" + maxAllocation + ")!")
-      edge.setAttribute("maxAllocation", maxAllocation)
+        throw new IllegalArgumentException(
+          s"Trying to allocate more vehicles ($expectedAllocation) than the street will hold ($maxAllocation)!"
+        )
+      edge.setAttribute("maxAllocation", Integer.valueOf(maxAllocation))
       val delta = expectedAllocation
       assert(delta >= 0)
-      val min = Math.max(0, expectedAllocation - delta)
-      val max = Math.min(maxAllocation, min + 2 * delta)
+      val min = math.max(0, expectedAllocation - delta)
+      val max = math.min(maxAllocation, min + 2 * delta)
       val randomAllocation = min + RND.nextInt(max - min + 1)
       assert(randomAllocation <= maxAllocation)
       totalAllocation += randomAllocation
-      edgeIdToNumVehicles += (edgeId, randomAllocation)
-    })
+      edgeIdToNumVehicles += (edgeId -> randomAllocation)
+    }
     edgeIdToNumVehicles
   }
 
-  /** fine-tune in the event that we have too many or too few vehicles allocated */
-  private def fineTuneEdgeAllocations(edgeIdToNumVehicles: Map[String, Integer], numVehicles: Int): Map[String, Integer] = {
+  private def maxVehiclesForEdgeLength(edgeLen: Double): Int =
+    (edgeLen / (VehiclePlacer.MIN_GAP + VehiclePlacer.VEHICLE_LENGTH)).toInt
+
+  /** Fine-tune in the event that we have too many or too few vehicles allocated */
+  private def fineTuneEdgeAllocations(edgeIdToNumVehicles: Map[String, Int], numVehicles: Int): Map[String, Int] = {
     var edgeIdToNum = edgeIdToNumVehicles
     val edgeIds = edgeIdToNum.keySet.toArray
     while (totalAllocation > numVehicles) {
       val rndId = edgeIds(RND.nextInt(edgeIds.length))
       if (edgeIdToNum(rndId) > 0) {
-        edgeIdToNum += (rndId, edgeIdToNum(rndId) - 1)
+        edgeIdToNum += (rndId -> (edgeIdToNum(rndId) - 1))
         totalAllocation -= 1
       }
     }
 
     while (totalAllocation < numVehicles) {
       val rndId = edgeIds(RND.nextInt(edgeIds.length))
-      if (edgeIdToNum(rndId) < getMaxAllocation(graph.getEdge(rndId))) {
-        edgeIdToNum += (rndId, edgeIdToNum(rndId) + 1)
+      val edge = graph.getEdge(rndId)
+      if (edgeIdToNum(rndId) < getMaxAllocation(edge)) {
+        edgeIdToNum += (rndId -> (edgeIdToNum(rndId) + 1))
         totalAllocation += 1
       }
     }
     edgeIdToNum
   }
-
-  private def getSumAllocatedVehicles(edgeIdToNumVehicles: Map[String, Integer]) =
-    edgeIdToNumVehicles.values.map(_.toInt).sum
 
   /**
    * Allocation algorithm
@@ -131,12 +133,12 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
    *    which resolves conflicts by moving to the next available slot.
    *  - Place the sprites in the array into the edge at the corresponding position.
    */
-  private def allocateVehicles(edgeIdToNumVehicles: Map[String, Integer]): Unit = {
+  private def allocateVehicles(edgeIdToNumVehicles: Map[String, Int]): Unit = {
     val spriteCt = new AtomicInteger
-    streetEdges.forEach((edge: Edge) => {
+    streetEdges.foreach { edge =>
       val numVehiclesToAdd = edgeIdToNumVehicles(edge.getId)
       placeVehiclesForEdge(edge, numVehiclesToAdd, spriteCt)
-    })
+    }
     println("done allocating vehicles on edge")
   }
 
@@ -145,8 +147,10 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
     val maxAllocation = getMaxAllocation(edge)
     val spriteSlots = new Array[Sprite](maxAllocation)
     assert(numVehiclesToAdd <= spriteSlots.length)
-    System.out.println("now adding " + numVehiclesToAdd + " vehicles to edge " + edge.getId + " total avail slots = " + spriteSlots.length + " with maxAllocation=" + maxAllocation);
-    for (i <- 0 until numVehiclesToAdd) {
+    System.out.println(
+      s"now adding $numVehiclesToAdd vehicles to edge ${edge.getId} total avail slots = ${spriteSlots.length} with maxAllocation=$maxAllocation"
+    )
+    for (_ <- 0 until numVehiclesToAdd) {
       var positionIdx = RND.nextInt(spriteSlots.length)
       while (spriteSlots(positionIdx) != null)
         positionIdx = (positionIdx + 1) % spriteSlots.length
@@ -154,19 +158,19 @@ class VehiclePlacer(private val sprites: VehicleSpriteManager, private val graph
       val color = VehiclePlacer.VEHICLE_COLORS(RND.nextInt(VehiclePlacer.VEHICLE_COLORS.length))
       sprite.setAttribute("ui.style", s"fill-color: $color")
       spriteCount.incrementAndGet()
-      // for some reason there seems to be a problem with sprite orientation a the ver ends
       val pos = 0.01 + 0.98 * positionIdx.toDouble / spriteSlots.length
-      //println("setting sprite " + spriteCount.get() + " pos to " + pos + " and putting it in slot " + positionIdx)
       sprite.setPosition(pos)
       spriteSlots(positionIdx) = sprite
       sprite.attachToEdge(edge.getId)
     }
   }
 
-  private def findTotaLengthOfAllEdges(graph: Graph) = streetEdges.stream().mapToDouble(e => getEdgeLen(e)).toArray.sum
+  private def findTotalLengthOfAllEdges: Double =
+    streetEdges.map(e => getEdgeLen(e)).sum
 
-  private def getMaxAllocation(edge: Edge) = edge.getAttribute("maxAllocation", classOf[Object]).asInstanceOf[Integer]
+  private def getMaxAllocation(edge: Edge): Int =
+    edge.getAttribute("maxAllocation", classOf[Object]).asInstanceOf[Integer].intValue()
 
-  private def getEdgeLen(edge: Edge) =
+  private def getEdgeLen(edge: Edge): Double =
     edge.getAttribute("length", classOf[Object]).asInstanceOf[Double]
 }

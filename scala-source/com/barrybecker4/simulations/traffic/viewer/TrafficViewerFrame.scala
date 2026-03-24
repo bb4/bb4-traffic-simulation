@@ -7,8 +7,8 @@ import com.barrybecker4.discreteoptimization.pathviewer.PathViewerFrame.*
 import com.barrybecker4.simulations.traffic.demo.TrafficOrchestrator
 import com.barrybecker4.simulations.traffic.viewer.adapter.{IntersectionSubGraph, TrafficStreamAdapter}
 import com.barrybecker4.simulations.traffic.graph.{TrafficGraph, TrafficGraphParser}
-import org.graphstream.graph.{Edge, Graph, Node}
-import org.graphstream.ui.layout.springbox.implementations.{LinLog, SpringBox}
+import org.graphstream.graph.Graph
+import org.graphstream.ui.layout.springbox.implementations.SpringBox
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import java.awt.{BorderLayout, Color}
@@ -102,13 +102,6 @@ class TrafficViewerFrame extends GraphViewerFrame() {
         val cause = exception.getCause
         cause.printStackTrace()
     }
-  }
-
-  private def createUI(): JPanel = {
-    val label = new JLabel("Label dsfadsfa")
-    val panel = new JPanel()
-    panel.add(label)
-    panel;
   }
 
   private def getGraphName(fileName: String): String = {

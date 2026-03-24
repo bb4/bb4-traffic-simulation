@@ -5,8 +5,11 @@ import com.barrybecker4.simulations.traffic.demo.TrafficOrchestrator
 
 
 /**
- * This just shows the hardcoded graph from TrafficGraphGenerator.
- * For general traffic map configurations, use TrafficViewerApp.
+ * Hardcoded demo graph from [[TrafficGraphGenerator]] (not loaded via [[com.barrybecker4.simulations.traffic.graph.TrafficGraphParser]]).
+ *
+ * Intersection traffic signals and [[com.barrybecker4.simulations.traffic.viewer.adapter.IntersectionSubGraph]] updates are not run here
+ * because this graph is not wired through [[com.barrybecker4.simulations.traffic.viewer.adapter.TrafficStreamAdapter]].
+ * Vehicles still move along edges. For full simulation, open a map from [[TrafficViewerFrame]].
  */
 object TrafficDemoApplication {
   private val SPRITE_COUNT = 100
@@ -17,6 +20,6 @@ object TrafficDemoApplication {
     val graph = new TrafficGraphGenerator().generateGraph()
     val pipeIn = graph.display(false).newViewerPipe()
     val initialSpeed = 10.0
-    new TrafficOrchestrator(graph, SPRITE_COUNT, initialSpeed, IndexedSeq(), pipeIn).run()
+    new TrafficOrchestrator(graph, SPRITE_COUNT, initialSpeed, IndexedSeq.empty, pipeIn).run()
   }
 }

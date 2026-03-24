@@ -3,7 +3,6 @@ package com.barrybecker4.simulations.traffic.vehicles
 import org.graphstream.graph.{Edge, Graph}
 import org.graphstream.ui.spriteManager.SpriteManager
 
-import java.util.stream.Collectors
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 

@@ -6,7 +6,7 @@ import com.barrybecker4.simulations.traffic.graph.model.{Intersection, Street}
 
 
 /**
- * An immutable directed graph with optional node locations
+ * Streets are undirected; `neighborsOf` returns intersections reachable by one street segment.
  */
 case class TrafficGraph(numVehicles: Int,
                         intersections: IndexedSeq[Intersection], 
@@ -23,6 +23,7 @@ case class TrafficGraph(numVehicles: Int,
   private def computeNeighborsMap(): Unit = {
     for (street <- streets) {
       neighborMap.addNeighbor(street.intersectionIdx1, street.intersectionIdx2)
+      neighborMap.addNeighbor(street.intersectionIdx2, street.intersectionIdx1)
     }
   }
 

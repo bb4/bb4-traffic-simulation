@@ -1,13 +1,10 @@
 package com.barrybecker4.simulations.traffic.signals
 
-import com.barrybecker4.simulations.traffic.signals.{SignalState, TrafficSignal}
+import com.barrybecker4.simulations.traffic.signals.SignalState
 import com.barrybecker4.simulations.traffic.signals.SignalState.*
-
-import java.util.concurrent.{Executors, TimeUnit}
-import concurrent.duration.DurationInt
-import com.barrybecker4.simulations.traffic.signals.DumbTrafficSignal.*
 import com.barrybecker4.simulations.traffic.vehicles.VehicleSprite
-import org.graphstream.graph.Node
+
+import java.util.concurrent.TimeUnit
 
 
 /**
@@ -92,24 +89,5 @@ class DumbTrafficSignal(numStreets: Int) extends TrafficSignal(numStreets) {
     lightState = RED
     currentStreet = (currentStreet + 1) % numStreets
     switchToGreen()
-  }
-}
-
-
-object DumbTrafficSignal {
-
-  def main(args: Array[String]): Unit = {
-    val numStreets = 5
-    val trafficLight = new DumbTrafficSignal(numStreets)
-    val checkInterval = 1.second
-
-    val executor = Executors.newScheduledThreadPool(1)
-    executor.scheduleAtFixedRate(new Runnable {
-      def run(): Unit = trafficLight.printLightStates()
-    }, 0, checkInterval.toMillis, TimeUnit.MILLISECONDS)
-
-    Thread.sleep(30000)
-    executor.shutdown()
-    trafficLight.shutdown()
   }
 }

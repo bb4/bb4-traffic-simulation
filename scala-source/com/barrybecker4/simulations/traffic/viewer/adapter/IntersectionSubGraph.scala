@@ -1,19 +1,10 @@
 package com.barrybecker4.simulations.traffic.viewer.adapter
 
-import com.barrybecker4.common.format.FormatUtil
-import com.barrybecker4.common.geometry.FloatLocation
 import com.barrybecker4.simulations.traffic.graph.model.Intersection
 import com.barrybecker4.simulations.traffic.signals.TrafficSignal
 import com.barrybecker4.simulations.traffic.vehicles.{VehicleSprite, VehicleSpriteManager}
-import com.barrybecker4.simulations.traffic.viewer.adapter.IntersectionSubGraphBuilder
 import org.graphstream.graph.{Edge, Node}
 import org.graphstream.graph.implementations.MultiGraph
-import com.barrybecker4.simulations.traffic.signals.SignalState.*
-import com.barrybecker4.simulations.traffic.vehicles.VehicleSprite.DEBUG
-import com.barrybecker4.common.format.FormatUtil.formatNumber
-
-import scala.collection.mutable
-
 
 /**
  * Represents the nodes and edges in an intersection.
@@ -26,7 +17,6 @@ case class IntersectionSubGraph(intersection: Intersection, graph: MultiGraph) {
 
   def getIncomingNode(portId: Int): Node = builder.incomingNodes(portId)
   def getOutgoingNode(portId: Int): Node = builder.outgoingNodes(portId)
-
 
   /** Called by the orchestrator to update the intersection every timeStep
    * - Within an intersection, examine the sprites on intersection edges and the edges leading into the intersection.
@@ -45,10 +35,10 @@ case class IntersectionSubGraph(intersection: Intersection, graph: MultiGraph) {
       signal.showLight(inNode, portId)
       assert(inNode.getInDegree == 1, "There should be exactly one edge entering the intersection on a port")
       val incomingEdge: Edge = inNode.getEnteringEdge(0)
-      updateVehiclesOnEdge(true, incomingEdge, portId, deltaTime, spriteManager)
+      updateVehiclesOnEdge(handleSignal = true, incomingEdge, portId, deltaTime, spriteManager)
       for (j <- 0 until inNode.getOutDegree) {
         val outgoingEdge = inNode.getLeavingEdge(j)
-        updateVehiclesOnEdge(false, outgoingEdge, portId, deltaTime, spriteManager)
+        updateVehiclesOnEdge(handleSignal = false, outgoingEdge, portId, deltaTime, spriteManager)
       }
     }
   }
@@ -66,32 +56,42 @@ case class IntersectionSubGraph(intersection: Intersection, graph: MultiGraph) {
 
     if (sprites.nonEmpty) {
       val leadVehicle = sortedSprites.last
-      val trailingVehicleOnNextStreet: Option[VehicleSprite] =
+      val trailingOnNextStreet: Option[VehicleSprite] =
         leadVehicle.getNextEdge.getAttribute("lastVehicle", classOf[Option[VehicleSprite]])
-      val endSize = if (trailingVehicleOnNextStreet.isEmpty) sortedSprites.size - 1 else sortedSprites.size
+      val endSize =
+        if (trailingOnNextStreet.isEmpty) sortedSprites.size - 1 else sortedSprites.size
       for (i <- 0 until endSize) {
         val sprite = sortedSprites(i)
-        val nextSprite =
-          if (i == sortedSprites.size - 1) trailingVehicleOnNextStreet.get
-          else sortedSprites(i + 1)
-        val nextPosition =
-          if (i == sortedSprites.size - 1) 1.0 + nextSprite.getPosition
-          else nextSprite.getPosition
+        val (nextSprite, nextPosition) =
+          nextCarAndPosition(sortedSprites, i, trailingOnNextStreet)
         val distanceToNext = (nextPosition - sprite.getPosition) * edgeLen
         assert(distanceToNext > 0, "The distance to the car in front should never be less than 0")
-        if (distanceToNext < signal.getFarDistance) {
-          if (distanceToNext < signal.getOptimalDistance) {
-            if (sprite.getSpeed >= nextSprite.getSpeed) {
-              sprite.setSpeed(nextSprite.getSpeed * 0.9)
-            }
-          }
-          else if (sprite.getSpeed <= nextSprite.getSpeed + 0.05) {
-            sprite.setSpeed(nextSprite.getSpeed + 0.1)
-          }
-        } else {
-          sprite.accelerate(0.05)
-        }
+        adjustSpeedTowardNext(sprite, nextSprite, distanceToNext)
       }
+    }
+  }
+
+  private def nextCarAndPosition(
+      sortedSprites: IndexedSeq[VehicleSprite],
+      i: Int,
+      trailingOnNextStreet: Option[VehicleSprite]
+  ): (VehicleSprite, Double) =
+    if (i == sortedSprites.size - 1)
+      (trailingOnNextStreet.get, 1.0 + trailingOnNextStreet.get.getPosition)
+    else
+      (sortedSprites(i + 1), sortedSprites(i + 1).getPosition)
+
+  private def adjustSpeedTowardNext(sprite: VehicleSprite, nextSprite: VehicleSprite, distanceToNext: Double): Unit = {
+    if (distanceToNext < signal.getFarDistance) {
+      if (distanceToNext < signal.getOptimalDistance) {
+        if (sprite.getSpeed >= nextSprite.getSpeed) {
+          sprite.setSpeed(nextSprite.getSpeed * 0.9)
+        }
+      } else if (sprite.getSpeed <= nextSprite.getSpeed + 0.05) {
+        sprite.setSpeed(nextSprite.getSpeed + 0.1)
+      }
+    } else {
+      sprite.accelerate(0.05)
     }
   }
 }

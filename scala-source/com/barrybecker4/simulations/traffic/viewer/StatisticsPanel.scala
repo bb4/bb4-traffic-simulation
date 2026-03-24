@@ -4,12 +4,10 @@ import com.barrybecker4.common.format.FormatUtil
 import com.barrybecker4.simulations.traffic.vehicles.{VehicleSprite, VehicleStatistics}
 import org.graphstream.graph.{Edge, Graph}
 
-import java.awt.{BorderLayout, Dimension, FlowLayout}
-import java.util
+import java.awt.BorderLayout
 import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
-import javax.swing.event.TableColumnModelListener
-import javax.swing.{JLabel, JPanel, JTable, ListSelectionModel}
-import javax.swing.table.{AbstractTableModel, TableColumn, TableColumnModel}
+import javax.swing.{JPanel, JTable}
+import javax.swing.table.{AbstractTableModel, TableColumn}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
@@ -63,11 +61,17 @@ class StatisticsPanel(graph: Graph) extends JPanel {
     println("numVehicles = " + numVehicles)
 
     val elapsed: Double = (System.currentTimeMillis() - startTime) / 1000.0
+    val elapsedSafe = elapsed.max(1e-6)
     data(0)(1) = FormatUtil.formatNumber(elapsed) + " seconds"
     data(1)(1) = FormatUtil.formatNumber(stats.getTotalDistance) + " meters"
     data(1)(2) = FormatUtil.formatNumber(stats.getIncrementalDistance) + " meters"
-    data(2)(1) = FormatUtil.formatNumber((stats.getTotalDistance / numVehicles) / elapsed) + " m/s"
-    data(2)(2) = FormatUtil.formatNumber((stats.getIncrementalDistance / numVehicles) / 2.0) + " m/s"
+    if (numVehicles == 0) {
+      data(2)(1) = "—"
+      data(2)(2) = "—"
+    } else {
+      data(2)(1) = FormatUtil.formatNumber((stats.getTotalDistance / numVehicles) / elapsedSafe) + " m/s"
+      data(2)(2) = FormatUtil.formatNumber((stats.getIncrementalDistance / numVehicles) / 2.0) + " m/s"
+    }
     stats.resetIncrementalDistance()
     this.repaint()
   }

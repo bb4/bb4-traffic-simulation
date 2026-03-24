@@ -40,9 +40,7 @@ trait TrafficSignal(numStreets: Int) {
 
     lightState match {
       case RED =>
-        // if the light is red, then first car should already be stopped if it is close to the light
         if (vehicleClosestToLight.getSpeed > 0.0 && vehicleClosestToLight.getPosition > 0.97) {
-          //println("vehicleClosestToLight.getSpeed=" + vehicleClosestToLight.getSpeed + " should have been 0")
           vehicleClosestToLight.stop()
         } else if (vehicleClosestToLight.getPosition > 0.9) {
           vehicleClosestToLight.setSpeed(vehicleClosestToLight.getSpeed * .9)
@@ -50,24 +48,32 @@ trait TrafficSignal(numStreets: Int) {
       case YELLOW =>
         val yellowElapsedTime = (System.currentTimeMillis() - yellowStartTime) / 1000.0
         val yellowRemainingTime = getYellowDurationSecs.toDouble - yellowElapsedTime
-        var vehicleIdx = sortedVehicles.size
-        var found = false
-        var vehicle: VehicleSprite = null
-        while (!found && vehicleIdx > 0) {
-          vehicleIdx -= 1
-          vehicle = sortedVehicles(vehicleIdx)
-          val distanceToLight = (1.0 - vehicle.getPosition) * edgeLen
-          val distAtCurrentSpeed = yellowRemainingTime * vehicle.getSpeed
-          val farDist = (yellowRemainingTime + getYellowDurationSecs) * vehicle.getSpeed
-          if (distAtCurrentSpeed > distanceToLight && distAtCurrentSpeed < farDist) {
-            found = true
-          }
-        }
-        if (found) {
+        findVehicleAffectedByYellow(sortedVehicles, edgeLen, yellowRemainingTime).foreach { vehicle =>
           vehicle.brake(yellowRemainingTime * vehicle.getSpeed, deltaTime)
         }
       case GREEN =>
         vehicleClosestToLight.accelerate(0.1)
     }
+  }
+
+  /** Vehicle that is in the “commit or stop” band for yellow, if any. */
+  private def findVehicleAffectedByYellow(
+      sortedVehicles: IndexedSeq[VehicleSprite],
+      edgeLen: Double,
+      yellowRemainingTime: Double
+  ): Option[VehicleSprite] = {
+    var idx = sortedVehicles.size
+    var found: Option[VehicleSprite] = None
+    while (found.isEmpty && idx > 0) {
+      idx -= 1
+      val vehicle = sortedVehicles(idx)
+      val distanceToLight = (1.0 - vehicle.getPosition) * edgeLen
+      val distAtCurrentSpeed = yellowRemainingTime * vehicle.getSpeed
+      val farDist = (yellowRemainingTime + getYellowDurationSecs) * vehicle.getSpeed
+      if (distAtCurrentSpeed > distanceToLight && distAtCurrentSpeed < farDist) {
+        found = Some(vehicle)
+      }
+    }
+    found
   }
 }
