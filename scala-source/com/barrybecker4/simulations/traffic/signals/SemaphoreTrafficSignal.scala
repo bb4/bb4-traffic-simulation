@@ -23,7 +23,7 @@ class SemaphoreTrafficSignal(numStreets: Int, config: TrafficSimulationConfig) e
   override def getGreenDurationSecs: Int = config.semaphoreGreenDurationSecs
 
   private val lightStates: Array[SignalState] = Array.fill(numStreets)(RED)
-  private var currentSchedule: ScheduledFuture[?] = _
+  private var currentSchedule: ScheduledFuture[?] = null
   private var streetWithSemaphore: Int = NoStreetHoldsSemaphore
   private var lastToBecomeRed: Int = -1
 

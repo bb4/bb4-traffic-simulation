@@ -1,19 +1,18 @@
 package com.barrybecker4.simulations.traffic.viewer
 
 import TrafficViewerFrame.{PARSER, SUFFIX, TRAFFIC_GRAPHS_PREFIX}
-import com.barrybecker4.graph.visualization.{GraphViewer, GraphViewerFrame}
-import com.barrybecker4.discreteoptimization.pathviewer.PathViewerFrame.*
 import com.barrybecker4.simulations.traffic.demo.TrafficSimulationBootstrap
-import com.barrybecker4.simulations.traffic.graph.{TrafficGraph, TrafficGraphParser}
+import com.barrybecker4.simulations.traffic.roadnet.{TrafficGraph, TrafficGraphParser}
 import com.barrybecker4.simulations.traffic.simulation.TrafficSimulationConfig
 import com.barrybecker4.simulations.traffic.viewer.adapter.{TrafficGraphBundle, TrafficStreamAdapter}
-import org.graphstream.graph.Graph
+import org.graphstream.graph.implementations.MultiGraph
 import org.graphstream.ui.layout.springbox.implementations.SpringBox
+import org.graphstream.ui.view.Viewer
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import java.awt.BorderLayout
 import java.io.File
 import javax.swing.*
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.io.Source
 
@@ -25,9 +24,27 @@ object TrafficViewerFrame {
   private val SUFFIX: String = ".txt"
 }
 
-class TrafficViewerFrame extends GraphViewerFrame() {
+class TrafficViewerFrame extends JFrame {
+  private var graphViewer: Viewer = null
+  private var embeddedView: JPanel = null
 
-  override protected def createMenu(): Unit = {
+  createMenu()
+  setupInitialAppearance()
+
+  /** Without this, the frame never shows and the JVM often exits as soon as `main` returns. */
+  private def setupInitialAppearance(): Unit = {
+    setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
+    setTitle("Traffic Simulation")
+    setLayout(new BorderLayout())
+    val hint = new JLabel("File → Open traffic map to load a map.", SwingConstants.CENTER)
+    hint.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24))
+    add(hint, BorderLayout.CENTER)
+    setSize(900, 700)
+    setLocationRelativeTo(null)
+    setVisible(true)
+  }
+
+  private def createMenu(): Unit = {
     val myMenuBar: JMenuBar = new JMenuBar()
     val fileMenu = new JMenu("File")
     val openTrafficGraphItem = createOpenTrafficGraphItemOption()
@@ -74,13 +91,23 @@ class TrafficViewerFrame extends GraphViewerFrame() {
   ): Unit = {
     val graph = bundle.graph
 
-    if (viewer != null)
-      remove(viewer.getViewPanel)
-    viewer = new GraphViewer(graph)
-    this.setTitle(title)
+    if (graphViewer != null) {
+      graphViewer.close()
+      graphViewer = null
+    }
+    if (embeddedView != null) {
+      remove(embeddedView)
+      embeddedView = null
+    }
+    getContentPane.removeAll()
 
-    if (graph.getNodeCount > 0 && graph.getNode(0).hasAttribute("xyz")) viewer.disableAutoLayout()
-    else viewer.enableAutoLayout(SpringBox())
+    graphViewer = graph.display(false)
+    if (graph.getNodeCount > 0 && graph.getNode(0).hasAttribute("xyz")) graphViewer.disableAutoLayout()
+    else graphViewer.enableAutoLayout(new SpringBox())
+
+    embeddedView = graphViewer.getDefaultView.asInstanceOf[JPanel]
+
+    this.setTitle(title)
 
     val state = TrafficSimulationBootstrap.createState(config, bundle)
     val spriteGen = TrafficSimulationBootstrap.addSprites(bundle, state, numVehicles, initialSpeed, config)
@@ -88,13 +115,13 @@ class TrafficViewerFrame extends GraphViewerFrame() {
     this.setLayout(new BorderLayout())
     val statsPanel = new StatisticsPanel(graph, state, spriteGen.getSpriteManager)
     this.add(statsPanel, BorderLayout.NORTH)
-    this.add(viewer.getViewPanel, BorderLayout.CENTER)
+    this.add(embeddedView, BorderLayout.CENTER)
 
     this.repaint()
     setVisible(true)
 
     val displayFuture: Future[Unit] = Future {
-      TrafficSimulationBootstrap.runOrchestrator(bundle, config, spriteGen, viewer.newViewerPipe())
+      TrafficSimulationBootstrap.runOrchestrator(bundle, config, spriteGen, graphViewer.newViewerPipe())
     }
     displayFuture.onComplete {
       case scala.util.Success(_) =>
@@ -113,7 +140,7 @@ class TrafficViewerFrame extends GraphViewerFrame() {
   private def loadTrafficGraphFromFile(file: File): TrafficGraph = {
     val name = file.getName
     val source: Source = Source.fromFile(file.getAbsolutePath)
-    PARSER.parse(source, name)
+    PARSER.parseFromSource(source, name)
   }
 
   private def loadTrafficGraphFromName(name: String): TrafficGraph = {

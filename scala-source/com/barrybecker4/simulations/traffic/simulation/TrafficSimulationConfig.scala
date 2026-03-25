@@ -5,8 +5,12 @@ package com.barrybecker4.simulations.traffic.simulation
  */
 case class TrafficSimulationConfig(
     deltaTimeSecs: Double = 0.02,
-    /** Multiplier for wall-clock sleep per tick; 0 means no sleep (run as fast as possible). */
-    realtimeSpeedFactor: Double = 1.0,
+    /**
+     * Multiplier for wall-clock sleep per tick: `sleepMs = (deltaTimeSecs * 1000 * realtimeSpeedFactor).toLong`.
+     * `0` means no sleep (CPU-limited, fastest simulation).
+     * Default `0.1` matches the original demo (`Thread.sleep(2)` with `deltaTimeSecs = 0.02` → 2ms per tick).
+     */
+    realtimeSpeedFactor: Double = 0.1,
     maxSpeed: Double = 20.0,
     preferredSpeed: Double = 16.0,
     maxAcceleration: Double = 4.0,

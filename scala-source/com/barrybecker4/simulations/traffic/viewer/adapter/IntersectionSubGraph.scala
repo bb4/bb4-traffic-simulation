@@ -1,6 +1,6 @@
 package com.barrybecker4.simulations.traffic.viewer.adapter
 
-import com.barrybecker4.simulations.traffic.graph.model.Intersection
+import com.barrybecker4.simulations.traffic.roadnet.model.Intersection
 import com.barrybecker4.simulations.traffic.signals.TrafficSignal
 import com.barrybecker4.simulations.traffic.simulation.{RoadTopology, SimulationState, TrafficSimulationConfig}
 import com.barrybecker4.simulations.traffic.simulation.SimVehicle
@@ -9,7 +9,10 @@ import org.graphstream.graph.implementations.MultiGraph
 
 /**
  * Represents the nodes and edges in an intersection.
- * Regulates the movement of vehicles on the edges leading into the intersection
+ * Regulates the movement of vehicles on the edges leading into the intersection.
+ *
+ * Updates run on the simulation thread only (see [[com.barrybecker4.simulations.traffic.demo.TrafficOrchestrator]]);
+ * [[com.barrybecker4.simulations.traffic.simulation.SimulationState SimulationState]] is not synchronized — do not mutate it from the EDT concurrently.
  */
 case class IntersectionSubGraph(intersection: Intersection, graph: MultiGraph, config: TrafficSimulationConfig) {
 

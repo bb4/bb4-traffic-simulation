@@ -1,7 +1,5 @@
 package com.barrybecker4.simulations.traffic
 
-import com.barrybecker4.graph.GraphTstUtil
-import com.barrybecker4.graph.visualization.{GraphStreamAdapter, GraphViewerFrame}
 import com.barrybecker4.simulations.traffic.viewer.TrafficViewerFrame
 
 
@@ -12,6 +10,9 @@ import com.barrybecker4.simulations.traffic.viewer.TrafficViewerFrame
  *     - Use the lastVehicle in the traffic flow calculation.
  */
 object TrafficApp extends App {
+
+  /** Required before any GraphStream graph is built; selects Swing viewer implementation. */
+  System.setProperty("org.graphstream.ui", "org.graphstream.ui.swing.util.Display")
 
   val frame = new TrafficViewerFrame()
 

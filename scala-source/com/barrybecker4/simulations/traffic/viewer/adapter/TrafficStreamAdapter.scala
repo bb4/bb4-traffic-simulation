@@ -1,6 +1,6 @@
 package com.barrybecker4.simulations.traffic.viewer.adapter
 
-import com.barrybecker4.simulations.traffic.graph.TrafficGraph
+import com.barrybecker4.simulations.traffic.roadnet.TrafficGraph
 import com.barrybecker4.simulations.traffic.simulation.{RoadTopology, TrafficSimulationConfig}
 import com.barrybecker4.simulations.traffic.viewer.GraphStreamStyle
 import com.barrybecker4.simulations.traffic.viewer.TrafficGraphUtil.{addEdgeLengths, showNodeLabels}

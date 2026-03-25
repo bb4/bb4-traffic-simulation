@@ -51,7 +51,7 @@ object RoadTopology {
 
   def fromGraph(graph: MultiGraph): RoadTopology = {
     val edges = mutable.Map.empty[String, EdgeRecord]
-    val outgoing = mutable.Map.empty[String, mutable.ArrayBuffer[String]].withDefault(_ => mutable.ArrayBuffer())
+    val outgoing = mutable.Map.empty[String, mutable.ArrayBuffer[String]]
 
     graph.edges().iterator().asScala.foreach { e =>
       val id = e.getId
@@ -60,7 +60,7 @@ object RoadTopology {
       val src = e.getSourceNode.getId
       val tgt = e.getTargetNode.getId
       edges(id) = EdgeRecord(id, len, t, src, tgt)
-      outgoing(src) += id
+      outgoing.getOrElseUpdate(src, mutable.ArrayBuffer()) += id
     }
 
     RoadTopology(

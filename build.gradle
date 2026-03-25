@@ -19,4 +19,11 @@ dependencies {
     // for graph visualization
     implementation 'org.graphstream:gs-core:2.0'
     implementation 'org.graphstream:gs-ui-swing:2.0'
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
 }

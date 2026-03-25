@@ -1,7 +1,4 @@
-package com.barrybecker4.simulations.traffic.graph.model
-
-import com.barrybecker4.graph.Edge
-
+package com.barrybecker4.simulations.traffic.roadnet.model
 
 case class Street(intersectionIdx1: Int, 
                   portIdx1: Int, 

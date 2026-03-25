@@ -4,8 +4,8 @@ import scala.collection.immutable.Set
 
 case class VehicleStatistics(vehicles: Set[VehicleSprite]) {
 
-  private var totalDistance: Double = _
-  private var incrementalDistance: Double = _
+  private var totalDistance: Double = 0.0
+  private var incrementalDistance: Double = 0.0
   initialize()
 
   def getTotalDistance: Double = totalDistance

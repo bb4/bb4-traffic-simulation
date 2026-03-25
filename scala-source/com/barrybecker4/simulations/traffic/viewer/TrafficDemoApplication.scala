@@ -1,7 +1,7 @@
 package com.barrybecker4.simulations.traffic.viewer
 
 import com.barrybecker4.simulations.traffic.demo.TrafficSimulationBootstrap
-import com.barrybecker4.simulations.traffic.graph.TrafficGraphParser
+import com.barrybecker4.simulations.traffic.roadnet.TrafficGraphParser
 import com.barrybecker4.simulations.traffic.simulation.TrafficSimulationConfig
 import com.barrybecker4.simulations.traffic.viewer.adapter.TrafficStreamAdapter
 
@@ -25,7 +25,7 @@ object TrafficDemoApplication {
     val parser = TrafficGraphParser()
     val file = new File(DataPrefix + DefaultMapName + Suffix)
     val source = Source.fromFile(file.getAbsolutePath)
-    val trafficGraph = parser.parse(source, DefaultMapName + Suffix)
+    val trafficGraph = parser.parseFromSource(source, DefaultMapName + Suffix)
     val adapter = TrafficStreamAdapter(trafficGraph, config)
     val bundle = adapter.build()
     val state = TrafficSimulationBootstrap.createState(config, bundle)

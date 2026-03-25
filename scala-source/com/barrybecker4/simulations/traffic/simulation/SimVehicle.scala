@@ -16,8 +16,8 @@ class SimVehicle(
   private var speed: Double = initialSpeed
   private var incrementalDistance: Double = 0
   private var totalDistance: Double = 0
-  private var currentEdgeId: String = _
-  private var nextEdgeId: String = _
+  private var currentEdgeId: String = null
+  private var nextEdgeId: String = null
 
   def getSpeed: Double = speed
   def getPosition: Double = positionPct

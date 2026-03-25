@@ -1,8 +1,7 @@
-package com.barrybecker4.simulations.traffic.graph
+package com.barrybecker4.simulations.traffic.roadnet
 
 import com.barrybecker4.common.geometry.FloatLocation
-import com.barrybecker4.graph.Parser
-import com.barrybecker4.simulations.traffic.graph.model.{Intersection, Port, Street}
+import com.barrybecker4.simulations.traffic.roadnet.model.{Intersection, Port, Street}
 import com.barrybecker4.simulations.traffic.signals.TrafficSignalType
 
 
@@ -18,9 +17,18 @@ import com.barrybecker4.simulations.traffic.signals.TrafficSignalType
  * :
  * intersectionId_in port_i intersectionId_jn port_j
  */
-case class TrafficGraphParser() extends Parser[TrafficGraph] {
+case class TrafficGraphParser() {
 
-  override protected def parse(lines: IndexedSeq[String], trafficMapName: String): TrafficGraph = {
+  def parseFromSource(source: scala.io.Source, trafficMapName: String): TrafficGraph = {
+    try {
+      val lines = source.getLines().toIndexedSeq
+      parseLines(lines, trafficMapName)
+    } finally {
+      source.close()
+    }
+  }
+
+  private def parseLines(lines: IndexedSeq[String], trafficMapName: String): TrafficGraph = {
     val firstLine = lines(0).split("\\s+")
     val numIntersections = firstLine(0).toInt
     val numStreets = firstLine(1).toInt

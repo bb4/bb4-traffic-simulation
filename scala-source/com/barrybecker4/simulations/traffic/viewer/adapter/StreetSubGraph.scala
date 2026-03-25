@@ -1,17 +1,18 @@
 package com.barrybecker4.simulations.traffic.viewer.adapter
 
 import com.barrybecker4.common.geometry.FloatLocation
-import com.barrybecker4.simulations.traffic.graph.model.{Intersection, Street}
+import com.barrybecker4.simulations.traffic.roadnet.model.{Intersection, Street}
 import org.graphstream.graph.{Edge, Node}
 import org.graphstream.graph.implementations.MultiGraph
-import com.barrybecker4.graph.visualization.render.UiClass.PLAIN
-import com.barrybecker4.simulations.traffic.viewer.adapter.StreetSubGraph.STREET_TYPE
+import com.barrybecker4.simulations.traffic.viewer.adapter.StreetSubGraph.{STREET_TYPE, STREET_EDGE_UI_CLASS}
 import com.barrybecker4.simulations.traffic.viewer.adapter.IntersectionSubGraphBuilder.INTERSECTION_RADIUS
 import com.barrybecker4.simulations.traffic.viewer.adapter.TrafficStreamAdapter.COMPUTE_CURVES
 
 
 object StreetSubGraph {
   val STREET_TYPE: String = "street"
+  /** Matches GraphStream / bb4 default stylesheet `ui.class` for ordinary edges. */
+  private[adapter] val STREET_EDGE_UI_CLASS: String = "plain"
 }
 
 case class StreetSubGraph(street: Street,
@@ -34,7 +35,7 @@ case class StreetSubGraph(street: Street,
   private def createEdge(street: Street, isForward: Boolean, srcNode: Node, dstNode: Node): Edge = {
     val edgeId = getStreetEdgeId(street, isForward)
     val edge = graph.addEdge(edgeId, srcNode, dstNode, true)
-    edge.setAttribute("ui.class", PLAIN.name)
+    edge.setAttribute("ui.class", STREET_EDGE_UI_CLASS)
     edge.setAttribute("type", STREET_TYPE)
     edge.setAttribute("lastVehicle", None)
     if (COMPUTE_CURVES) addCurvePoints(edge, street, isForward)

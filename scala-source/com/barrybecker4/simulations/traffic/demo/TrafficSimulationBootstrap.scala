@@ -1,6 +1,6 @@
 package com.barrybecker4.simulations.traffic.demo
 
-import com.barrybecker4.simulations.traffic.graph.TrafficGraph
+import com.barrybecker4.simulations.traffic.roadnet.TrafficGraph
 import com.barrybecker4.simulations.traffic.simulation.{SimulationState, TrafficSimulationConfig}
 import com.barrybecker4.simulations.traffic.vehicles.VehicleSpriteGenerator
 import com.barrybecker4.simulations.traffic.viewer.adapter.TrafficGraphBundle

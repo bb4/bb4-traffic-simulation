@@ -6,7 +6,7 @@ import org.graphstream.graph.Graph
 
 class VehicleSpriteGenerator(private val numSprites: Int, initialSpeed: Double, val config: TrafficSimulationConfig) {
 
-  private var spriteManager: VehicleSpriteManager = _
+  private var spriteManager: VehicleSpriteManager = null
 
   def getSpriteManager: VehicleSpriteManager = spriteManager
 

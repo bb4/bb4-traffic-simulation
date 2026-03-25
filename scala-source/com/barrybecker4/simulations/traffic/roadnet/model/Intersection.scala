@@ -1,4 +1,4 @@
-package com.barrybecker4.simulations.traffic.graph.model
+package com.barrybecker4.simulations.traffic.roadnet.model
 
 import com.barrybecker4.common.geometry.FloatLocation
 import com.barrybecker4.simulations.traffic.signals.TrafficSignalType
