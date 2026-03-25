@@ -7,7 +7,8 @@ import com.barrybecker4.simulations.traffic.viewer.adapter.TrafficGraphBundle
 import org.graphstream.ui.view.ViewerPipe
 
 /**
- * Shared wiring: build [[SimulationState]], place sprites, and run [[TrafficOrchestrator]].
+ * Shared wiring: build [[com.barrybecker4.simulations.traffic.simulation.SimulationState]],
+ * place sprites, and run [[com.barrybecker4.simulations.traffic.demo.TrafficOrchestrator]].
  */
 object TrafficSimulationBootstrap {
 

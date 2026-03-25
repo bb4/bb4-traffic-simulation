@@ -48,7 +48,7 @@ class VehicleSprite(
     }
   }
 
-  /** Copies model position to the sprite without mutating [[simVehicle]] (already updated by the engine). */
+  /** Copies model position to the sprite without mutating the `simVehicle` model (already updated by the engine). */
   def syncPositionFromState(): Unit = {
     super.setPosition(simVehicle.getPosition)
   }
