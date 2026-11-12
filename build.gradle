@@ -1,12 +1,12 @@
 plugins {
-    id 'com.barrybecker4.bb4.scala-library' version '2.0-SNAPSHOT'
-    id 'com.barrybecker4.bb4.publish' version '2.0-SNAPSHOT'
-    id 'com.barrybecker4.bb4.application' version '2.0-SNAPSHOT'
+    id 'com.barrybecker4.bb4.scala-library' version '2.1'
+    id 'com.barrybecker4.bb4.publish' version '2.1'
+    id 'com.barrybecker4.bb4.application' version '2.1'
 }
 
 description = 'Traffic flow simulation'
 group = 'com.barrybecker4'
-version = '2.0-SNAPSHOT'
+version = '2.1'
 
 bb4 {
     archivesBaseName.set('bb4-traffic-simulation')
@@ -14,16 +14,9 @@ bb4 {
 }
 
 dependencies {
-    implementation 'com.barrybecker4:bb4-common:2.0-SNAPSHOT'
-    implementation 'com.barrybecker4:bb4-math:2.0-SNAPSHOT'
+    implementation 'com.barrybecker4:bb4-common:2.1'
+    implementation 'com.barrybecker4:bb4-math:2.1'
     // for graph visualization
     implementation 'org.graphstream:gs-core:2.0'
     implementation 'org.graphstream:gs-ui-swing:2.0'
-
-    testImplementation platform('org.junit:junit-bom:5.10.2')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-}
-
-test {
-    useJUnitPlatform()
 }
