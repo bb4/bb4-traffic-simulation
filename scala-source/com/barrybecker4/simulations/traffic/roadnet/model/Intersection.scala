@@ -1,6 +1,6 @@
 package com.barrybecker4.simulations.traffic.roadnet.model
 
-import com.barrybecker4.common.geometry.FloatLocation
+import com.barrybecker4.simulations.traffic.roadnet.FloatLocation
 import com.barrybecker4.simulations.traffic.signals.TrafficSignalType
 import com.barrybecker4.simulations.traffic.signals.TrafficSignalType.DUMB_TRAFFIC_SIGNAL
 

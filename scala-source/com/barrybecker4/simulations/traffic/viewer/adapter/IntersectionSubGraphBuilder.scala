@@ -1,6 +1,6 @@
 package com.barrybecker4.simulations.traffic.viewer.adapter
 
-import com.barrybecker4.common.geometry.FloatLocation
+import com.barrybecker4.simulations.traffic.roadnet.FloatLocation
 import com.barrybecker4.simulations.traffic.roadnet.model.Intersection
 import com.barrybecker4.simulations.traffic.viewer.adapter.IntersectionSubGraphBuilder.{INTERSECTION_RADIUS, INTERSECTION_TYPE, LANE_SEP_ANGLE, VECTOR_SCALE}
 import com.barrybecker4.simulations.traffic.viewer.adapter.TrafficStreamAdapter.COMPUTE_CURVES

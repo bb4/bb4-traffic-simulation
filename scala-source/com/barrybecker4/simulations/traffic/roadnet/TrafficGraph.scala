@@ -1,6 +1,6 @@
 package com.barrybecker4.simulations.traffic.roadnet
 
-import com.barrybecker4.common.geometry.FloatLocation
+import com.barrybecker4.simulations.traffic.roadnet.FloatLocation
 import com.barrybecker4.simulations.traffic.roadnet.model.{Intersection, Street}
 
 import scala.collection.mutable
